@@ -21,31 +21,32 @@ public class Converter {
     }
 
     /**
-     * Converts Docx into PDF
+     * Converts Docx into PDF.
+     *
      * @param docIn Path to the Docx
      * @param docOut Path, where the PDF will be saved
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public void init(String docIn, String docOut) throws FileNotFoundException, IOException {
-        InputStream in = new FileInputStream(new File(docIn));
-        OutputStream out = new FileOutputStream(new File(docOut));
+    public void convert(String docIn, String docOut) throws FileNotFoundException, IOException {
+        OutputStream out;
+        try (InputStream in = new FileInputStream(new File(docIn));
+                XWPFDocument document = new XWPFDocument(in)) {
+            out = new FileOutputStream(new File(docOut));
+            PdfDocument pdfDocument;
+            Document pdfDoc;
 
-        XWPFDocument document = new XWPFDocument(in);
+            PdfWriter writer = new PdfWriter(docOut);
+            pdfDocument = new PdfDocument(writer);
+            pdfDoc = new Document(pdfDocument);
+            List<XWPFParagraph> paragraphs = document.getParagraphs();
+            paragraphs.forEach(p -> {
+                pdfDoc.add(new Paragraph(p.getText()));
+            });
 
-        PdfWriter writer = new PdfWriter(docOut);
-
-        PdfDocument pdfDocument = new PdfDocument(writer);
-        Document pdfDoc = new Document(pdfDocument);
-
-        List<XWPFParagraph> paragraphs = document.getParagraphs();
-        for (XWPFParagraph p : paragraphs) {
-            pdfDoc.add(new Paragraph(p.getText()));
+            pdfDocument.close();
+            pdfDoc.close();
         }
-        document.close();
-        pdfDoc.close();
-        pdfDocument.close();
-        in.close();
         out.close();
     }
 }
