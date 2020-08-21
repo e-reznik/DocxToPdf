@@ -52,28 +52,12 @@ public class Converter {
             paragraphs.forEach(p -> {
                 List<XWPFRun> runs = p.getRuns();
                 Paragraph par = new Paragraph();
-                /* Each chunk (word) can have it's own formatting. Therefore each of them will be iterated.*/
+                /* Each chunk (word) can have its own formatting. Therefore each of them will be iterated. */
                 runs.stream().map(run -> {
-                    Text text = new Text(run.text());
-
-                    /* Basic text formatting */
-                    if (run.isBold()) {
-                        text.setBold();
-                    }
-                    if (run.isItalic()) {
-                        text.setItalic();
-                    }
-
-                    /* Catch exception, if no color is provided (e.g. auto) */
-                    try {
-                        Color color = hexToRgb(run.getColor());
-                        text.setFontColor(color);
-                    } catch (NumberFormatException ex) {
-                        LOGGER.log(Level.FINE, ex.toString());
-                    } catch (Exception ex) {
-                        LOGGER.log(Level.FINE, "Color not found", ex);
-                    }
-
+                    // Text formatting
+                    Text text = formatText(run);
+                    // Text color
+                    text = colorText(run, text);
                     return text;
                 }).forEachOrdered(text -> {
                     par.add(text);
@@ -88,11 +72,49 @@ public class Converter {
     }
 
     /**
+     * Provides basic text formatting.
+     *
+     * @param run
+     * @return formatted text
+     */
+    private Text formatText(XWPFRun run) {
+        Text text = new Text(run.text());
+        System.out.println(text);
+        if (run.isBold()) {
+            text.setBold();
+        }
+        if (run.isItalic()) {
+            text.setItalic();
+        }
+        return text;
+    }
+
+    /**
+     * Applies color to a text. Handles Exceptions, if no color is provided (e.g. auto).
+     *
+     * @param run
+     * @param text
+     * @return colored text
+     */
+    private Text colorText(XWPFRun run, Text text) {
+        try {
+            Color color = hexToRgb(run.getColor());
+            text.setFontColor(color);
+        } catch (NumberFormatException ex) {
+            LOGGER.log(Level.FINE, ex.toString());
+        } catch (Exception ex) {
+            LOGGER.log(Level.FINE, "Color not found", ex);
+        }
+        return text;
+    }
+
+    /**
      * Converts HEX to RGB
      *
      * @param hex
      * @return
-     * @throws Exception
+     * @throws NumberFormatException if no color is provided (e.g. auto)
+     * @throws Exception if an unexpected exception occurs
      */
     private Color hexToRgb(String hex) throws NumberFormatException, Exception {
         if (hex != null && hex.length() != 6) {
