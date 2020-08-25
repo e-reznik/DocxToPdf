@@ -6,14 +6,15 @@
     Converter c = new Converter();
     c.convert(docIn, docOut);
 
-# Supported Elements
+# Supported elements
 - text
 - images
-- ~~tables~~
+- tables
+  - ~~text formatting~~
 - ~~headings~~
 - ~~basic shapes~~
 
-# Supported Formatting
+# Supported text formatting
 - bold
 - italic
 - colors
