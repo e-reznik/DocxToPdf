@@ -184,8 +184,8 @@ public class Converter {
             }
         }
 
-        /*  A table needs to be read and built sequencially. 
-        So the number of columns need to be determined before creating a new table. */
+        /*  A table needs to be read and built sequentially. 
+        So the number of columns needs to be determined before creating a new table. */
         int numColumns = columns / rows;
 
         Table table = new Table(numColumns);
