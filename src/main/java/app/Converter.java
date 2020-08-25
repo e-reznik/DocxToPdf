@@ -2,12 +2,12 @@ package app;
 
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.colors.Color;
-import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Text;
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,13 +16,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.poi.xwpf.usermodel.BodyElementType;
+import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFPicture;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 
 public class Converter {
 
@@ -41,8 +47,7 @@ public class Converter {
      */
     public void convert(String docIn, String docOut) throws FileNotFoundException, IOException {
         OutputStream out;
-        try (InputStream in = new FileInputStream(new File(docIn));
-                XWPFDocument document = new XWPFDocument(in)) {
+        try (InputStream in = new FileInputStream(new File(docIn)); XWPFDocument document = new XWPFDocument(in)) {
             out = new FileOutputStream(new File(docOut));
             PdfDocument pdfDocument;
             Document pdfDoc;
@@ -50,38 +55,59 @@ public class Converter {
             PdfWriter writer = new PdfWriter(docOut);
             pdfDocument = new PdfDocument(writer);
             pdfDoc = new Document(pdfDocument);
-            List<XWPFParagraph> paragraphs = document.getParagraphs();
 
-            paragraphs.forEach(p -> {
-                List<XWPFRun> runs = p.getRuns();
-                Paragraph par = new Paragraph();
-                /* Each chunk (word) can have its own formatting. Therefore each of them will be iterated. */
-                runs.stream().map(run -> {
-                    // Text formatting
-                    Text text = formatText(run);
-                    // Text color
-                    text = colorText(run, text);
-                    // Adding images
-                    try {
-                        Image image = extractPictures(run);
-                        if (image != null) {
-                            par.add(image);
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "Error while processing image", ex);
-                    }
-
-                    return text;
-                }).forEachOrdered(text -> {
-                    par.add(text);
-                });
-                pdfDoc.add(par);
-            });
+            // TODO: Provide explanation
+            int p = 0; // current paragraph
+            int t = 0; // current table
+            for (IBodyElement be : document.getBodyElements()) {
+                if (be.getElementType() == BodyElementType.PARAGRAPH) {
+                    pdfDoc.add(processParagraph(be.getBody().getParagraphArray(p)));
+                    p++;
+                } else if (be.getElementType() == BodyElementType.TABLE) {
+                    pdfDoc.add(processTable(be.getBody().getTableArray(t)));
+                    t++;
+                }
+            }
 
             pdfDocument.close();
             pdfDoc.close();
         }
         out.close();
+    }
+
+    /**
+     * Processes the text in the given paragraph.
+     *
+     * @param par
+     * @return iText paragraph
+     */
+    private Paragraph processParagraph(XWPFParagraph par) {
+        Paragraph paragraph = new Paragraph();
+        List<XWPFRun> runs = par.getRuns();
+        runs.stream().map(run -> {
+            Text text;
+
+            // Text formatting
+            text = formatText(run);
+
+            // Text color
+            text = colorText(run, text);
+
+            // Adding images
+            try {
+                Image image = extractPictures(run);
+                if (image != null) {
+                    paragraph.add(image);
+                }
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, "Error while processing image", ex);
+            }
+
+            return text;
+        }).forEachOrdered(text -> {
+            paragraph.add(text);
+        });
+        return paragraph;
     }
 
     /**
@@ -110,7 +136,7 @@ public class Converter {
      */
     private Text colorText(XWPFRun run, Text text) {
         try {
-            Color color = hexToRgb(run.getColor());
+            Color color = Helper.hexToRgb(run.getColor());
             text.setFontColor(color);
         } catch (NumberFormatException ex) {
             LOGGER.log(Level.FINE, ex.toString());
@@ -118,26 +144,6 @@ public class Converter {
             LOGGER.log(Level.FINE, "Color not found", ex);
         }
         return text;
-    }
-
-    /**
-     * Converts HEX to RGB.
-     *
-     * @param hex
-     * @return
-     * @throws NumberFormatException if no color is provided (e.g. auto)
-     * @throws Exception if an unexpected exception occurs
-     */
-    private Color hexToRgb(String hex) throws NumberFormatException, Exception {
-        if (hex != null && hex.length() != 6) {
-            throw new NumberFormatException(hex + " is not a color");
-        }
-        int r = Integer.valueOf(hex.substring(0, 2), 16);
-        int g = Integer.valueOf(hex.substring(2, 4), 16);
-        int b = Integer.valueOf(hex.substring(4, 6), 16);
-
-        Color rgb = new DeviceRgb(r, g, b);
-        return rgb;
     }
 
     /**
@@ -161,5 +167,31 @@ public class Converter {
             }
         }
         return image;
+    }
+
+    private Table processTable(XWPFTable tab) throws IOException {
+        List<Paragraph> paragraphs = new ArrayList<>();
+        int columns = 0;
+        int rows = 0;
+
+        List<XWPFTableRow> rowsTemp = tab.getRows();
+        for (XWPFTableRow rowTemp : rowsTemp) {
+            rows++;
+            List<XWPFTableCell> cellsTemp = rowTemp.getTableCells();
+            for (XWPFTableCell cellTemp : cellsTemp) {
+                columns++;
+                paragraphs.add(new Paragraph(cellTemp.getText()));
+            }
+        }
+
+        /*  A table needs to be read and built sequencially. 
+        So the number of columns need to be determined before creating a new table. */
+        int numColumns = columns / rows;
+
+        Table table = new Table(numColumns);
+        paragraphs.forEach(p -> {
+            table.addCell(p);
+        });
+        return table;
     }
 }
