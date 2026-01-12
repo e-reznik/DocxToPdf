@@ -1,3 +1,5 @@
+[![Java CI with Maven](https://github.com/e-reznik/DocxToPdf/actions/workflows/maven.yml/badge.svg)](https://github.com/e-reznik/DocxToPdf/actions/workflows/maven.yml)
+
 # DocxToPdf
 
 > **Note:** This project is archived and no longer maintained. A newer, improved version is available at [Docx2PDF](https://github.com/e-reznik/Docx2PDF), which uses [DocxJavaMapper](https://github.com/e-reznik/DocxJavaMapper) for DOCX parsing instead of Apache POI.
@@ -41,7 +43,3 @@ This project has been superseded by [Docx2PDF](https://github.com/e-reznik/Docx2
 - No dependency on Apache POI
 - Uses [DocxJavaMapper](https://github.com/e-reznik/DocxJavaMapper) for mapping DOCX structure to Java objects
 - Cleaner architecture with separation between parsing and PDF generation
-
-## License
-
-MIT
